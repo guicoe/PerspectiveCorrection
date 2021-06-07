@@ -24,18 +24,18 @@ class PerspectiveFrame (ui.View):
 		self.t_basis = [np.array([[0, 0, 1]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T]
 		
 		self.t_coords = self.find_target_coords()
-		self.t_points = self.find_target_points()
-		self.p_points = self.find_perspective_points()
+		self.t_points = self.find_target_points(self.t_coords)
+		self.p_points = self.find_perspective_points(self.t_points)
 		self.draw_grid = False
-		
-		
+
+				
 	def reset(self):
 		self.t_dist, self.t_width, self.t_height, self.draw_grid = self.defaults
 		self.t_center = np.array((self.width/2, self.height/2, -self.t_dist))
 		self.t_basis = [np.array([[0, 0, 1]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T]
 		self.t_coords = self.find_target_coords()
-		self.t_points = self.find_target_points()
-		self.p_points = self.find_perspective_points()
+		self.t_points = self.find_target_points(self.t_coords)
+		self.p_points = self.find_perspective_points(self.t_points)
 		self.set_needs_display()
 		
 		
@@ -43,13 +43,13 @@ class PerspectiveFrame (ui.View):
 		return [np.array((sgn_x * self.t_width/2, sgn_y * self.t_height/2)) for sgn_x, sgn_y in [(-1, -1), (1, -1), (1, 1), (-1, 1)]]
 		
 		
-	def find_target_points(self):
+	def find_target_points(self, t_coords):
 		A = np.hstack(self.t_basis[1:])
-		return [np.dot(A, coords) + self.t_center for coords in self.t_coords]
+		return [np.dot(A, coords) + self.t_center for coords in t_coords]
 		
 	
-	def find_perspective_points(self):
-		return [project_to_plane(t_point, self.p_dist, self.sensor) for t_point in self.t_points]
+	def find_perspective_points(self, t_points):
+		return [project_to_plane(t_point, self.p_dist, self.sensor) for t_point in t_points]
 		
 	
 	def draw(self):
@@ -65,12 +65,21 @@ class PerspectiveFrame (ui.View):
 			quad.line_to(*p)
 			quad.move_to(*p)
 		if self.draw_grid:
-			for i in range(tw_numpoints):
-				quad.move_to(*(i * (p1 - p0) / tw_numpoints + p0))
-				quad.line_to(*(i * (p2 - p3) / tw_numpoints + p3))
-			for i in range(th_numpoints):
-				quad.move_to(*(i * (p3 - p0) / th_numpoints + p0))
-				quad.line_to(*(i * (p2 - p1) / th_numpoints + p1))
+			t0, t1, t2, t3 = self.t_coords
+			for i in range(1, tw_numpoints):
+				start_coords = t0 + 50 * i * np.array((1, 0))
+				end_coords = t3 + 50 * i * np.array((1, 0))
+				start_t_point, end_t_point = self.find_target_points([start_coords, end_coords])
+				start, end = self.find_perspective_points([start_t_point, end_t_point])
+				quad.move_to(*start[:2])
+				quad.line_to(*end[:2])
+			for i in range(1, th_numpoints):
+				start_coords = t0 + 50 * i * np.array((0, 1))
+				end_coords = t1 + 50 * i * np.array((0, 1))
+				start_t_point, end_t_point = self.find_target_points([start_coords, end_coords])
+				start, end = self.find_perspective_points([start_t_point, end_t_point])
+				quad.move_to(*start[:2])
+				quad.line_to(*end[:2])
 		quad.stroke()
 		
 		
@@ -82,10 +91,13 @@ class PerspectiveFrame (ui.View):
 			nx = math.cos(altitude_angle) * math.cos(azimuth_angle)
 			ny = math.cos(altitude_angle) * math.sin(azimuth_angle)
 			nz = math.sin(altitude_angle)
+			tilt = np.dot(np.array([[0, ny, nz]]), np.array([[0, -1, 0]]).T)
+			labeled_sliders[3].slider.value = 0.5 * (tilt + 1)
+			labeled_sliders[3].value_label.text = "{:.1f}".format(float(tilt))
 			self.t_basis = GSBasis([np.array([[nx, ny, nz]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T])
 			self.t_center = project_to_plane(np.array((*touch.location, -self.p_dist)), self.t_dist, self.sensor)
-			self.t_points = self.find_target_points()
-			self.p_points = self.find_perspective_points()
+			self.t_points = self.find_target_points(self.t_coords)
+			self.p_points = self.find_perspective_points(self.t_points)
 			self.set_needs_display()
 		
 		
@@ -97,10 +109,13 @@ class PerspectiveFrame (ui.View):
 			nx = math.cos(altitude_angle) * math.cos(azimuth_angle)
 			ny = math.cos(altitude_angle) * math.sin(azimuth_angle)
 			nz = math.sin(altitude_angle)
+			tilt = np.dot(np.array([[0, ny, nz]]), np.array([[0, -1, 0]]).T)
+			labeled_sliders[3].slider.value = 0.5 * (tilt + 1)
+			labeled_sliders[3].value_label.text = "{:.1f}".format(float(tilt))
 			self.t_basis = GSBasis([np.array([[nx, ny, nz]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T])
 			self.t_center = project_to_plane(np.array((*touch.location, -self.p_dist)), self.t_dist, self.sensor)
-			self.t_points = self.find_target_points()
-			self.p_points = self.find_perspective_points()
+			self.t_points = self.find_target_points(self.t_coords)
+			self.p_points = self.find_perspective_points(self.t_points)
 			self.set_needs_display()
 			
 			
@@ -122,9 +137,12 @@ class NormalPad (ui.View):
 			nx = math.cos(altitude_angle) * math.cos(azimuth_angle)
 			ny = math.cos(altitude_angle) * math.sin(azimuth_angle)
 			nz = math.sin(altitude_angle)
+			tilt = np.dot(np.array([[0, ny, nz]]), np.array([[0, -1, 0]]).T)
+			labeled_sliders[3].slider.value = 0.5 * (tilt + 1)
+			labeled_sliders[3].value_label.text = "{:.1f}".format(float(tilt))
 			self.control_frame.t_basis = GSBasis([np.array([[nx, ny, nz]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T])
-			self.control_frame.t_points = self.control_frame.find_target_points()
-			self.control_frame.p_points = self.control_frame.find_perspective_points()
+			self.control_frame.t_points = self.control_frame.find_target_points(self.control_frame.t_coords)
+			self.control_frame.p_points = self.control_frame.find_perspective_points(self.control_frame.t_points)
 			self.control_frame.set_needs_display()
 			
 		
@@ -136,9 +154,12 @@ class NormalPad (ui.View):
 			nx = math.cos(altitude_angle) * math.cos(azimuth_angle)
 			ny = math.cos(altitude_angle) * math.sin(azimuth_angle)
 			nz = math.sin(altitude_angle)
+			tilt = np.dot(np.array([[0, ny, nz]]), np.array([[0, -1, 0]]).T)
+			labeled_sliders[3].slider.value = 0.5 * (tilt + 1)
+			labeled_sliders[3].value_label.text = "{:.1f}".format(float(tilt))
 			self.control_frame.t_basis = GSBasis([np.array([[nx, ny, nz]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T])
-			self.control_frame.t_points = self.control_frame.find_target_points()
-			self.control_frame.p_points = self.control_frame.find_perspective_points()
+			self.control_frame.t_points = self.control_frame.find_target_points(self.control_frame.t_coords)
+			self.control_frame.p_points = self.control_frame.find_perspective_points(self.control_frame.t_points)
 			self.control_frame.set_needs_display()
 			
 			
@@ -198,8 +219,8 @@ class SliderHandler (object):
 		m, M = context.min, context.max
 		self.frame.t_dist = (M - m) * value + m
 		self.frame.t_center[2] = -self.frame.t_dist
-		self.frame.t_points = self.frame.find_target_points()
-		self.frame.p_points = self.frame.find_perspective_points()
+		self.frame.t_points = self.frame.find_target_points(self.frame.t_coords)
+		self.frame.p_points = self.frame.find_perspective_points(self.frame.t_points)
 		self.frame.set_needs_display()
 		context.value_label.text = "{:.1f}".format(2 ** d * self.frame.t_dist)
 		
@@ -211,8 +232,8 @@ class SliderHandler (object):
 		m, M = context.min, context.max
 		self.frame.t_width = (M - m) * value + m
 		self.frame.t_coords = self.frame.find_target_coords()
-		self.frame.t_points = self.frame.find_target_points()
-		self.frame.p_points = self.frame.find_perspective_points()
+		self.frame.t_points = self.frame.find_target_points(self.frame.t_coords)
+		self.frame.p_points = self.frame.find_perspective_points(self.frame.t_points)
 		self.frame.set_needs_display()
 		context.value_label.text = "{:.1f}".format(2 ** d * self.frame.t_width)
 		
@@ -224,8 +245,8 @@ class SliderHandler (object):
 		m, M = context.min, context.max
 		self.frame.t_height = (M - m) * value + m
 		self.frame.t_coords = self.frame.find_target_coords()
-		self.frame.t_points = self.frame.find_target_points()
-		self.frame.p_points = self.frame.find_perspective_points()
+		self.frame.t_points = self.frame.find_target_points(self.frame.t_coords)
+		self.frame.p_points = self.frame.find_perspective_points(self.frame.t_points)
 		self.frame.set_needs_display()
 		context.value_label.text = "{:.1f}".format(2 ** d * self.frame.t_height)
 		
@@ -235,9 +256,16 @@ class SliderHandler (object):
 		value = sender.value
 		d = context.doubool
 		m, M = context.min, context.max
-		n = self.frame.t_basis[0]
-		self.frame.t_dist = (M - m) * value + m
-		self.frame.t_basis = [np.array([[0, 0, 1]]).T, np.array([[1, 0, 0]]).T, np.array([[0, 1, 0]]).T]
+		n = np.vstack((self.frame.t_basis[0][:2], np.array([[0]])))
+		prev_tilt = math.acos(np.dot(n.T, np.array([[0, -1, 0]]).T))
+		new_tilt = math.acos((M - m) * value + m)
+		theta = new_tilt - prev_tilt
+		R = np.array([[1, 0, 0], [0, math.cos(theta), math.sin(theta)], [0, -math.sin(theta), math.cos(theta)]])
+		self.frame.t_basis = [np.dot(R, c) for c in self.frame.t_basis]
+		self.frame.t_points = self.frame.find_target_points(self.frame.t_coords)
+		self.frame.p_points = self.frame.find_perspective_points(self.frame.t_points)
+		self.frame.set_needs_display()
+		context.value_label.text = "{:.1f}".format((M - m) * value + m)
 		
 		
 		
@@ -270,12 +298,21 @@ class ButtonHandler (object):
 				quad.line_to(*p)
 				quad.move_to(*p)
 			if self.frame.draw_grid:
-				for i in range(tw_numpoints):
-					quad.move_to(*(i * (p1 - p0) / tw_numpoints + p0))
-					quad.line_to(*(i * (p2 - p3) / tw_numpoints + p3))
-				for i in range(th_numpoints):
-					quad.move_to(*(i * (p3 - p0) / th_numpoints + p0))
-					quad.line_to(*(i * (p2 - p1) / th_numpoints + p1))
+				t0, t1, t2, t3 = self.frame.t_coords
+				for i in range(1, tw_numpoints):
+					start_coords = t0 + 50 * i * np.array((1, 0))
+					end_coords = t3 + 50 * i * np.array((1, 0))
+					start_t_point, end_t_point = self.frame.find_target_points([start_coords, end_coords])
+					start, end = self.frame.find_perspective_points([start_t_point, end_t_point])
+					quad.move_to(*start[:2])
+					quad.line_to(*end[:2])
+				for i in range(1, th_numpoints):
+					start_coords = t0 + 50 * i * np.array((0, 1))
+					end_coords = t1 + 50 * i * np.array((0, 1))
+					start_t_point, end_t_point = self.frame.find_target_points([start_coords, end_coords])
+					start, end = self.frame.find_perspective_points([start_t_point, end_t_point])
+					quad.move_to(*start[:2])
+					quad.line_to(*end[:2])
 			quad.stroke()
 			img = ctx.get_image()
 		img.show()
@@ -388,11 +425,11 @@ if __name__ == "__main__":
 	slider_handler = SliderHandler(frame)
 	actions = [slider_handler.td, slider_handler.tw, slider_handler.th, slider_handler.v_tilt]
 	labels = ["Target Distance", "Object Width", "Object Height", "Vertical Tilt"]
-	ranges = [(1, max_distance), (0, frame.width), (0, frame.height), (-1, 1)]
+	ranges = [(1, max_distance), (0, frame.width), (0, frame.height), (-0.999, 0.999)]
 	defaults = [(frame.defaults[0] - 1)/(max_distance - 1), 600/frame.width, 400/frame.height, 0.5] # Make this better
-	double_display = [0, 1, 1, 0]
+	double_display = [1, 1, 1, 0]
 	labeled_sliders = []
-	for i in range(3):
+	for i in range(4):
 		labeled_slider = LabeledSlider(container.width, 70, *ranges[i], defaults[i], labels[i], actions[i], double_display[i])
 		labeled_slider.y = 100 * (i + 1)
 		container.add_subview(labeled_slider)
