@@ -4,9 +4,9 @@ import numpy as np
 
 # User identifies a pair of horizontal line segments and a pair of vertical line segments.
 
-# Extend line segments until they form a quadrilateral. Use following function
+# Extend line segments until they form a quadrilateral.
 
-# Find intersection for each pair of lines in projective space. >>> projectivegeo.py
+# Find intersection for each pair of lines in projective space.
 
 # Detect position of focal plane.
 
@@ -160,7 +160,8 @@ def find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor):
 	h_direction = np.array([[*h_int, focal_distance]]) - sensor
 	v_direction = np.array([[*v_int, focal_distance]]) - sensor
 	target_normal = np.cross(h_direction, v_direction)
-	target_normal /= np.linalg.norm(target_normal) * target_normal[0][2]/abs(target_normal[0][2]) # Forces correct orientation
+	sgn = target_normal[0][2]/abs(target_normal[0][2])
+	target_normal /= np.linalg.norm(target_normal) * sgn
 	
 	# Project quad onto target plane (which should result in a rectangle on target)
 	target_shift = np.array([[0, 0, focal_distance]])
@@ -175,13 +176,13 @@ def find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor):
 	# Project rotate_rect back to focal plane to get corrected quad
 	rect = project_to_plane(rotate_rect, sensor, np.array([[0, 0, 1]]), target_shift)
 	
-	# Find perspective coefficients mapping quad to rect
-	quad = [v[0][:2] for v in quad]
-	rect = [v[0][:2] for v in rect]
-	
 	# Center rect at sensor for now (we probably don't want this in the end)
+	rect = [v[0][:2] for v in rect]
 	rect_center = rect[0] + np.array(((rect[1][0] - rect[0][0])/2, (rect[2][1] - rect[0][1])/2))
 	centered_rect = [v - rect_center + sensor[0][:2] for v in rect]
+	
+	# Find perspective coefficients mapping quad to rect
+	quad = [v[0][:2] for v in quad]
 	coeffs = find_perspective_coeffs(centered_rect, quad)
 	
 	return coeffs
