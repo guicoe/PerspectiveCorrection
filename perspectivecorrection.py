@@ -120,6 +120,13 @@ def find_perspective_coeffs(pa, pb):
 	return np.array(res).reshape(8)
 	
 	
+def draw_lines(image, points, thickness):
+	draw = ImageDraw.Draw(image)
+	for p in points[0:4:3]:
+		for q in points[1:3]:
+			draw.line((*p, *q), fill = "blue", width = thickness)
+	
+	
 def find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor):
 	
 	'''
@@ -170,20 +177,19 @@ def find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor):
 	
 	# Rotate target plane so normal points forward and rectangle aligns with axes
 	h_axis = (target_rect[1] - target_rect[0]) / np.linalg.norm(target_rect[1] - target_rect[0])
-	R = np.vstack((h_axis, np.cross(target_normal, h_axis), target_normal))
-	rotate_rect = [(np.dot(R, point.T - target_shift.T) + target_shift.T).T for point in target_rect]
+	h_axis *= h_axis[0][0]/abs(h_axis[0][0])
+	R = np.vstack((h_axis, np.cross(target_normal, h_axis), target_normal)).T
+	rotate_rect = [np.dot(point - sensor - target_shift, R) + sensor + target_shift for point in target_rect]
+	rect_center = 0.5 * (rotate_rect[0] + rotate_rect[3])
+	centered_rect = [v - rect_center + sensor + 2*target_shift for v in rotate_rect]
 	
-	# Project rotate_rect back to focal plane to get corrected quad
-	rect = project_to_plane(rotate_rect, sensor, np.array([[0, 0, 1]]), target_shift)
-	
-	# Center rect at sensor for now (we probably don't want this in the end)
-	rect = [v[0][:2] for v in rect]
-	rect_center = rect[0] + np.array(((rect[1][0] - rect[0][0])/2, (rect[2][1] - rect[0][1])/2))
-	centered_rect = [v - rect_center + sensor[0][:2] for v in rect]
+	# Project centered_rect back to focal plane to get corrected quad
+	rect = project_to_plane(centered_rect, sensor, np.array([[0, 0, 1]]), target_shift)
 	
 	# Find perspective coefficients mapping quad to rect
+	rect = [v[0][:2] for v in rect]
 	quad = [v[0][:2] for v in quad]
-	coeffs = find_perspective_coeffs(centered_rect, quad)
+	coeffs = find_perspective_coeffs(rect, quad)
 	
 	return coeffs
 

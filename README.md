@@ -14,14 +14,14 @@ This is the main part of the project containing the functions needed to correct 
 
 ## Process for Perspective Correction
 
-* User identifies a pair of horizontal line segments and a pair of vertical line segments.
-* Extend line segments until they form a quadrilateral.
-* Find intersection for each pair of lines in projective space.
-* Detect position of focal plane.
-* Find vector normal to target plane.
-* Project vertices of quadrilateral in focal plane onto target plane.
-* Rotate target plane so that it's orthogonal to the line of sight.
-* Project vertices of quadrilateral (should be a rectangle) in target plane to focal plane.
-* Rotate if necessary so that the rectangle's sides are horizontal and vertical.
-* Use old points along with new points to warp the perspective of the image accordingly.
-* Allow user to constrain crop the output and export the corrected image.
+1. User identifies a pair of horizontal line segments and a pair of vertical line segments.
+2. Extend line segments until they form a quadrilateral.
+3. Find intersection for each pair of lines in projective space.
+4. Detect position of focal plane.
+5. Find vector normal to target plane.
+6. Project vertices of quadrilateral in focal plane onto target plane.
+7. Rotate target plane so that it's orthogonal to the line of sight.
+8. Project vertices of quadrilateral (should be a rectangle) in target plane to focal plane.
+9. Rotate if necessary so that the rectangle's sides are horizontal and vertical.
+1. Use old points along with new points to warp the perspective of the image accordingly.
+2. Allow user to constrain crop the output and export the corrected image.
