@@ -1,9 +1,12 @@
 import ui
 import io
+import csv
+import console
 import dialogs
 from perspectivecorrection import *
 from PIL import Image, ImageDraw
 import numpy as np
+from objc_util import ObjCInstance
 
 
 
@@ -12,8 +15,8 @@ class ImageFrame (ui.View):
 	def __init__(self, file, work_area):
 		
 		self.image = Image.open(file)
-		self.work_area = work_area
 		self.original = ui.Image.named(file)
+		self.work_area = work_area
 		w, h = self.original.size
 		kh = 0.99 * (self.work_area.height - 40)/h
 		kw = 0.99 * self.work_area.width/w
@@ -29,6 +32,7 @@ class ImageFrame (ui.View):
 		
 		
 	def draw(self):
+		
 		if self.buttons[2].active:
 			self.corrected.draw(0, 0, self.width, self.height)
 		else:
@@ -36,49 +40,45 @@ class ImageFrame (ui.View):
 		
 		
 	def touch_began(self, touch):
-		if self.touchable:
+		
+		ui_touch = ObjCInstance(touch)
+		if self.touchable and ui_touch.type() == 2:
 			
-			# Create new dot if image is touchable
-			dot = Dot(2, 10)
-			dot.center = touch.location
-			self.points.append(dot)
-			self.add_subview(dot)
-			
-			# Every couple of dots, create new line
-			if len(self.points) % 2 == 0:
-				line = Line(*self.points[-2:], self.width, self.height)
-				line.touch_enabled = False
-				self.lines.append(line)
-				self.points[-2].line = line
-				self.points[-2].start = True
-				self.points[-1].line = line
-				self.add_subview(line)
-				if len(self.horizontal_lines) < 2:
-					self.horizontal_lines.append(line)
-				else:
-					self.vertical_lines.append(line)
+			for i in range(2):
+				dot = Dot(2, 10)
+				dot.center = touch.location
+				self.points.append(dot)
+				self.add_subview(dot)
+			line = Line(*self.points[-2:], self.width, self.height)
+			line.touch_enabled = False
+			self.lines.append(line)
+			self.points[-2].line = line
+			self.points[-2].start = True
+			self.points[-1].line = line
+			self.add_subview(line)
+			if len(self.horizontal_lines) < 2:
+				self.horizontal_lines.append(line)
+			else:
+				self.vertical_lines.append(line)
 				
 		
 	def touch_moved(self, touch):
 		
-		# This allows us to drag a point around while we place it
-		# If the newly added point creates a line, this should also drag the line
-		if self.touchable:
+		ui_touch = ObjCInstance(touch)
+		if self.touchable and ui_touch.type() == 2:
 			self.points[-1].center = touch.location
-			if len(self.points) % 2 == 0:
-				self.lines[-1].p2 = touch.location
-				self.lines[-1].set_needs_display()
+			self.lines[-1].p2 = touch.location
+			self.lines[-1].set_needs_display()
 				
 	
 	def touch_ended(self, touch):
 		
-		# This enables the button for submitting lines only when lines are ready to be submitted
-		# Also disables input for more points until lines are submitted
 		if len(self.points) == 4:
 			self.buttons[1].border_color = "white"
 			self.buttons[1].tint_color = "white"
 			self.buttons[1].active = False
 			self.buttons[1].touch_enabled = True
+			self.touchable = False
 			
 		elif len(self.points) == 8:
 			self.buttons[2].border_color = "white"
@@ -106,6 +106,7 @@ class Dot (ui.View):
 		
 		
 	def draw(self):
+		
 		circle = ui.Path.oval(self.lw/2, self.lw/2, self.r, self.r)
 		circle.line_width = self.lw
 		ui.set_color("#007fff")
@@ -151,6 +152,10 @@ class ButtonHandler (object):
 	def switcher(self, sender):
 		control = sender.control
 		buttons = control.buttons
+		if sender == buttons[0] and len(control.points) < 8:
+			control.touchable = False
+		elif len(control.points) < 8:
+			control.touchable = True
 		for button in buttons:
 			if button.active:
 				button.touch_enabled = True
@@ -162,6 +167,7 @@ class ButtonHandler (object):
 		sender.border_color = "#007fff"
 		sender.tint_color = "#007fff"
 		if sender != buttons[2]:
+			control.touch_enabled = True
 			def animation():
 				for line in control.horizontal_lines:
 					line.alpha = 1 if buttons[0].active else 0.2
@@ -175,6 +181,7 @@ class ButtonHandler (object):
 					control.points[i].touch_enabled = buttons[1].active
 			ui.animate(animation, duration = 0.2)
 		else:
+			control.touch_enabled = False
 			for point in control.points:
 				point.alpha = 0
 				point.line.alpha = 0
@@ -189,13 +196,37 @@ class ButtonHandler (object):
 			coeffs = find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor)
 			corrected_image = image.transform((width, height), Image.PERSPECTIVE, coeffs, Image.BICUBIC)
 			control.corrected = pil2ui(corrected_image)
+			corrected_image.show()
 		sender.control.set_needs_display()
 		
 		
 	def cancel(self, sender):
 		sender.superview.superview.close()
 		
-			
+	
+	def export(self, sender):
+		control = sender.control
+		if console.alert("Export", "Would you like to add this example to demo.py?", "Yes", "No") == 1:
+			path = "./test_images/"
+			with open(path + "samples.csv", "r+", newline = "") as samples:
+				#writer = csv.writer(samples)
+				#writer.writerow(['Name', 'h11x', 'h11y', 'h12x', 'h12y', 'h21x', 'h21y', 'h22x', 'h22y', 
+				#						'v11x', 'v11y', 'v12x', 'v12y', 'v21x', 'v21y', 'v22x', 'v22y'])
+				reader = csv.reader(samples)
+				n = 0
+				for _ in reader:
+					n += 1
+				filename = "test_{}.png".format(n)
+				writer = csv.writer(samples)
+				control.image.save(path + filename)
+				scale = control.scale
+				lines = control.lines
+				row = [filename]
+				row.extend([str(round(k/scale)) for l in lines for p in [l.p1, l.p2] for k in p])
+				writer.writerow(row)
+		sender.superview.superview.close()
+		
+
 	def pick_pic(self, sender):
 		
 		canvas = sender.superview
@@ -262,6 +293,18 @@ class ButtonHandler (object):
 			cancel.center = (45, 75)
 			cancel.action = self.cancel
 			top_bar.add_subview(cancel)
+			
+			done = ui.Button(title = "Done")
+			done.width = 70
+			done.height = 30
+			done.corner_radius = 10
+			done.border_width = 2
+			done.border_color = "#007fff"
+			done.tint_color = "#007fff"
+			done.center = (top_bar.width - 45, 75)
+			done.action = self.export
+			done.control = image
+			top_bar.add_subview(done)
 			
 			canvas.remove_subview(sender)
 			

@@ -120,11 +120,12 @@ def find_perspective_coeffs(pa, pb):
 	return np.array(res).reshape(8)
 	
 	
-def draw_lines(image, points, thickness):
+def draw_lines(image, lines, r):
 	draw = ImageDraw.Draw(image)
-	for p in points[0:4:3]:
-		for q in points[1:3]:
-			draw.line((*p, *q), fill = "blue", width = thickness)
+	for p, q in lines:
+		draw.ellipse((p[0]-r, p[1]-r, p[0]+r, p[1]+r), fill = "#007fff")
+		draw.ellipse((q[0]-r, q[1]-r, q[0]+r, q[1]+r), fill = "#007fff")
+		draw.line((*p, *q), fill = "#007fff", width = r)
 	
 	
 def find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor):
@@ -196,14 +197,14 @@ def find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor):
 
 if __name__ == "__main__":
 	
-	file = "/test_images/test_bad.png"
+	file = "./test_images/test_3.png"
 	image = Image.open(file)
 	width, height = image.size
 	sensor = np.array([[width/2, height/2, 0]])
 	
 	# Express a line as a list containing two points on the line
-	horizontal_lines = [[(552, 310), (1120, 1090)], [(386, 431), (1258, 1537)]]
-	vertical_lines = [[(552, 310), (386, 431)], [(1120, 1090), (1258, 1537)]]
+	horizontal_lines = [[(1293, 366), (1863, 1193)], [(418, 2519), (1487, 2003)]]
+	vertical_lines = [[(1293, 364), (422, 2527)], [(1868, 1177), (1495, 2001)]]
 	
 	# Run main function on extracted lines
 	coeffs = find_persp_coeffs_from_lines(horizontal_lines, vertical_lines, sensor)
