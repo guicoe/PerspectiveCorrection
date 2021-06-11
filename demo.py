@@ -29,6 +29,8 @@ for index in range(n):
 	# Warp original image to correct perspective
 	corrected_image = image.transform((width, height), Image.PERSPECTIVE, coeffs, Image.BICUBIC)
 	
+	print("horizontal_lines = " + str(horizontal_lines))
+	print("vertical_lines = " + str(vertical_lines))
 	draw_lines(image, lines, r = int(max(width, height)/300))
 	image.show()
 	corrected_image.show()
