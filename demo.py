@@ -4,6 +4,9 @@ from perspectivecorrection import *
 sample = []
 path = "./test_images/"
 n = 0
+
+## We need to handle the case when we don't find a file with the given name
+
 with open(path + "samples.csv") as csvfile:
 	reader = csv.reader(csvfile)
 	header = next(reader)
